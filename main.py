@@ -1,41 +1,249 @@
 import os
-import sys
-import subprocess
+
+import logging
+
 import threading
-import time
-import http.server
-import socketserver
 
-# 1. سيرفر ويب خفيف جداً لإرضاء منصة Render وإبقائها مستيقظة 24 ساعة
-class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        self.wfile.write(b"Athar Bot Engine is Active via Main Core!")
+from flask import Flask
 
-def run_health_server():
-    # جلب المنفذ تلقائياً من نظام ريندر (الافتراضي 8080 أو حسب البيئة)
-    PORT = int(os.environ.get("PORT", 8080))
-    with socketserver.TCPServer(("", PORT), HealthCheckHandler) as httpd:
-        print(f"[INFO] Health server started on port {PORT}", flush=True)
-        httpd.serve_forever()
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 
-if __name__ == "__main__":
-    # أ) تشغيل سيرفر الويب في الخلفية كسطر مستقل (Thread)
-    threading.Thread(target=run_health_server, daemon=True).start()
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
+from gevent.pywsgi import WSGIServer
+
+
+
+# إعدادات تسجيل الأخطاء لضمان أعلى مستوى من الاستقرار في Render
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+
+
+# ==========================================================
+
+# ⚙️ [ قسم الإعدادات والرسائل - اكتب بياناتك هنا ] ⚙️
+
+# ==========================================================
+
+
+
+# 1️⃣ ضع توكن البوت الخاص بك هنا بين علامات التنصيص:
+
+BOT_TOKEN = "8721360021:AAGW_ZRnONtURyf9HUjhQsZRhQuSyriAbHA"
+
+
+
+# 2️⃣ ضع معرف حسابك (Chat ID) كأدمن هنا بين علامات التنصيص (رقم فقط):
+
+ADMIN_CHAT_ID = "6506150207"
+
+
+
+# 3️⃣ رسالتك الترحيبية الطويلة جداً (تظهر بعد ضغط Start):
+
+WELCOME_MESSAGE = """
+
+فريق أثر الخالدين | رؤية نحو المستقبل
+
+​نعيش اليوم مرحلة تتطلب مهارات تتجاوز المقاعد الدراسية. من قلب ثانوية المتفوقين الثانية، انطلقنا لنكون البيئة التي تحتضن العلماء والأطباء والأدباء القادمين؛ لتخريج جيل منافس عالمياً يمثل مدرستنا ووطننا في أرقى المحافل والجامعات العالمية.
+
+​📋 أقسام الفريق:
+
+🔬 البحث العلمي الشامل: كتابة البحوث العلمية والإنسانية بمهنية عالية (بعيداً عن المواضيع السياسية والدينية).
+
+🎨 الفن والأدب والمسرح: لكل المبدعين في الفنون بجميع أنواعها والباحثين في الأدب.
+
+💻 التكنولوجيا والذكاء الاصطناعي: الاهتمام بالبرمجة والتقنيات الحديثة.
+
+📸 الإعلام والتصميم: تصميم البحوث، التدقيق اللغوي، وتصوير الفعاليات.
+
+⚽️ النشاطات والرياضة: المساعدة في تنظيم الحملات التطوعية والفعاليات الرياضية.
+
+​📄 للمزيد من المعلومات:
+
+لمعرفة تفاصيل أكثر حول رؤية الفريق ونظامه الداخلي وقواعد الانضمام، يمكنكم الاطلاع على الملف التعريفي المرفق في الرابط أدناه.
+
+​https://www.canva.com/design/DAHMZe1VjH0/HI7p552O9TrJgmMMRXc0HQ/view?utm_content=DAHMZe1VjH0&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hee20c388a2
+
+​🎫 لطلب كود التقديم:
+
+يرجى إرسال (الاسم الثلاثي + المرحلة الدراسية والشعبة) هنا. 
+
+⚠️ ملاحظة: في حال كان الاسم وهمياً، لن يصلك كود الدخول للاستمارة إلكترونية.
+
+​⏳ تنبيه: يغلق التقديم يوم الجمعة القادم تمام الساعة 6:00 مساءً.
+
+
+
+​رئيس مجلس إدارة الفريق
+
+[يوسف محمد عبدالرضا]
+
+"""
+
+
+
+# 4️⃣ رسالة الشكر والرد التلقائي (تظهر للمستخدم فور إرسال رسالته):
+
+THANK_YOU_MESSAGE = """
+
+شكراً على اهتمامك بالفريق، نقدر وقتك الثمين، وسيتم الرد عليك من قبل رئيس الفريق بأسرع وقت ممكن،  شاكرين تفهمك.🪻
+
+"""
+
+
+
+# ==========================================================
+
+
+
+# 🌐 نظام السيرفر المدمج المتوافق 100% مع بيئة Render ومنع النوم
+
+app = Flask('')
+
+
+
+@app.route('/')
+
+def home():
+
+    return "Athar Bot Core Engine is Active and Flying! 🚀"
+
+
+
+def run_flask():
+
+    # جلب المنفذ تلقائياً ليتوافق مع نظام Render (الافتراضي 10000 أو المنفذ المحدد سحابياً)
+
+    port = int(os.environ.get("PORT", 10000))
+
+    # استخدام WSGIServer الاحترافي لمنع تعليق خيوط المعالجة أونلاين
+
+    http_server = WSGIServer(('0.0.0.0', port), app)
+
+    print(f"[INFO] Web Server listening on port {port}...", flush=True)
+
+    http_server.serve_forever()
+
+
+
+# 🚀 دالة معالجة أمر /start
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text(WELCOME_MESSAGE)
+
+
+
+# 📩 دالة استقبال وتحويل الرسائل ونظام الرد الذكي
+
+async def handle_incoming_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.effective_user
+
+    user_id = user.id
+
     
-    print("[SYSTEM] Launching your original run_bot.py...", flush=True)
-    time.sleep(2)
+
+    # 👤 أولاً: نظام الرد المباشر للأدمن عند عمل Reply على رسالة البوت
+
+    if str(user_id) == str(ADMIN_CHAT_ID):
+
+        if update.message.reply_to_message:
+
+            try:
+
+                reply_markup = update.message.reply_to_message.reply_markup
+
+                button_url = reply_markup.inline_keyboard[0][0].url
+
+                original_user_id = button_url.split('id=')[1]
+
+                
+
+                await context.bot.send_message(chat_id=int(original_user_id), text=update.message.text)
+
+                await update.message.reply_text("✅ تم إرسال ردك بنجاح.")
+
+            except Exception:
+
+                await update.message.reply_text("❌ عذراً، لا يمكن الرد على هذه الرسالة.")
+
+        return
+
+
+
+    # 📥 ثانياً: نظام استقبال رسائل المستخدمين وتحويلها للأدمن بسرعة البرق
+
+    user_name = user.first_name
+
+    username = f"@{user.username}" if user.username else "لا يوجد يوزرنيم"
+
+    message_text = update.message.text
+
+
+
+    admin_notification_text = (
+
+        f"📩 رسالة جديدة وصلت للبوت!\n\n"
+
+        f"👤 الاسم: {user_name}\n"
+
+        f"🆔 الآيدي: `{user_id}`\n"
+
+        f"🏷 اليوزرنيم: {username}\n"
+
+        f"✍️ الرسالة:\n{message_text}"
+
+    )
+
+
+
+    # زر مدمج ذكي للانتقال المباشر لحساب الشخص المرسل
+
+    keyboard = [[InlineKeyboardButton(text=f"👤 فتح حساب: {user_name}", url=f"tg://user?id={user_id}")]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+
+
+    # إرسال الرسالة للأدمن فوراً وإرسال رسالة الشكر التلقائية للمستخدم
+
+    await context.bot.send_message(chat_id=int(ADMIN_CHAT_ID), text=admin_notification_text, reply_markup=reply_markup)
+
+    await update.message.reply_text(THANK_YOU_MESSAGE)
+
+
+
+def main():
+
+    # تشغيل خيط الويب (Thread) لمنع السيرفر من النوم
+
+    threading.Thread(target=run_flask, daemon=True).start()
+
     
-    # ب) تشغيل ملفك الأصلي رغماً عن السيرفر وبشكل مستمر
-    try:
-        # هذا الأمر يعادل تماماً فتح الـ CMD وكتابة python run_bot.py على لابتوبك
-        process = subprocess.Popen([sys.executable, "run_bot.py"])
-        
-        # إبقاء الملف الرئيسي حياً لمراقبة البوت وحمايته من التوقف
-        process.wait()
-    except Exception as e:
-        print(f"[FATAL ERROR] {e}", file=sys.stderr, flush=True)
-        while True:
-            time.sleep(3600)
+
+    print("🤖 البوت يعمل الآن بنجاح واستقرار تام على سيرفرات Render...", flush=True)
+
+    
+
+    # بناء التطبيق وربط الدوال البرمجية بالأوامر والرسائل
+
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    application.add_handler(CommandHandler("start", start_command))
+
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_incoming_messages))
+
+    
+
+    # تشغيل الاستماع المباشر (Polling)
+
+    application.run_polling()
+
+
+
+if __name__ == '__main__':
+
+    main()
