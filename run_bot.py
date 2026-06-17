@@ -239,5 +239,14 @@ def main():
 
 
 if __name__ == '__main__':
-
-    main()
+    # أ) تشغيل سيرفر الويب الخفيف في سطر مستقل
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    
+    # ب) حل مشكلة الـ Event Loop وتشغيل البوت بأمان
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(main_bot())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Bot stopped.")
