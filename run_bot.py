@@ -153,7 +153,7 @@ if __name__ == '__main__':
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
-    BOT_TOKEN = "YOUR_BOT_TOKEN_HERE" # ⚠️ امسح هذا واكتب توكن بوتك الحقيقي هنا
+    BOT_TOKEN = "8721360021:AAGW_ZRnONtURyf9HUjhQsZRhQuSyriAbHA" # ⚠️ امسح هذا واكتب توكن بوتك الحقيقي هنا
     
     application = Application.builder().token(BOT_TOKEN).build()
     
