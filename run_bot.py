@@ -154,7 +154,7 @@ if __name__ == '__main__':
     asyncio.set_event_loop(loop)
     
     # ⚠️ ضع توكن بوتك الحقيقي هنا بين علامتي التنصيص بدلاً من النص المؤقت
-    BOT_TOKEN = "8721360021:AAGW_ZRnONtURyf9HUjhQsZRhQuSyriAbHA"
+    BOT_TOKEN = os.environ.get("8721360021:AAGW_ZRnONtURyf9HUjhQsZRhQuSyriAbHA")
     
     from telegram.ext import filters
     application = Application.builder().token(BOT_TOKEN).build()
