@@ -6,36 +6,21 @@ from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-
-
 # إعدادات تسجيل الأخطاء لضمان أعلى مستوى من الاستقرار في Render
-
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
-
+logger = logging.getLogger(__name__)
 
 # ==========================================================
-
 # ⚙️ [ قسم الإعدادات والرسائل - اكتب بياناتك هنا ] ⚙️
-
 # ==========================================================
-
-
 
 # 1️⃣ ضع توكن البوت الخاص بك هنا بين علامات التنصيص:
-
 BOT_TOKEN = "8721360021:AAGW_ZRnONtURyf9HUjhQsZRhQuSyriAbHA"
 
-
-
 # 2️⃣ ضع معرف حسابك (Chat ID) كأدمن هنا بين علامات التنصيص (رقم فقط):
-
 ADMIN_CHAT_ID = "6506150207"
 
-
-
 # 3️⃣ رسالتك الترحيبية الطويلة جداً (تظهر بعد ضغط Start):
-
 WELCOME_MESSAGE = """
 
 فريق أثر الخالدين | رؤية نحو المستقبل
@@ -76,171 +61,94 @@ WELCOME_MESSAGE = """
 
 """
 
-
-
 # 4️⃣ رسالة الشكر والرد التلقائي (تظهر للمستخدم فور إرسال رسالته):
-
 THANK_YOU_MESSAGE = """
-
 شكراً على اهتمامك بالفريق، نقدر وقتك الثمين، وسيتم الرد عليك من قبل رئيس الفريق بأسرع وقت ممكن،  شاكرين تفهمك.🪻
-
 """
-
-
 
 # ==========================================================
 
-
-
 # 🌐 نظام السيرفر المدمج المتوافق 100% مع بيئة Render ومنع النوم
-
 app = Flask('')
 
-
-
 @app.route('/')
-
 def home():
-
     return "Athar Bot Core Engine is Active and Flying! 🚀"
 
-
-
 def run_flask():
-
     # جلب المنفذ تلقائياً ليتوافق مع نظام Render (الافتراضي 10000 أو المنفذ المحدد سحابياً)
-
     port = int(os.environ.get("PORT", 10000))
-
-    # استخدام WSGIServer الاحترافي لمنع تعليق خيوط المعالجة أونلاين
-
-    http_server = WSGIServer(('0.0.0.0', port), app)
-
     print(f"[INFO] Web Server listening on port {port}...", flush=True)
-
-    http_server.serve_forever()
-
-
+    app.run(host='0.0.0.0', port=port)
 
 # 🚀 دالة معالجة أمر /start
-
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     await update.message.reply_text(WELCOME_MESSAGE)
 
-
-
 # 📩 دالة استقبال وتحويل الرسائل ونظام الرد الذكي
-
 async def handle_incoming_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     user = update.effective_user
-
     user_id = user.id
-
     
-
     # 👤 أولاً: نظام الرد المباشر للأدمن عند عمل Reply على رسالة البوت
-
     if str(user_id) == str(ADMIN_CHAT_ID):
-
         if update.message.reply_to_message:
-
             try:
-
                 reply_markup = update.message.reply_to_message.reply_markup
-
                 button_url = reply_markup.inline_keyboard[0][0].url
-
                 original_user_id = button_url.split('id=')[1]
-
                 
-
                 await context.bot.send_message(chat_id=int(original_user_id), text=update.message.text)
-
                 await update.message.reply_text("✅ تم إرسال ردك بنجاح.")
-
             except Exception:
-
                 await update.message.reply_text("❌ عذراً، لا يمكن الرد على هذه الرسالة.")
-
         return
 
-
-
     # 📥 ثانياً: نظام استقبال رسائل المستخدمين وتحويلها للأدمن بسرعة البرق
-
     user_name = user.first_name
-
     username = f"@{user.username}" if user.username else "لا يوجد يوزرنيم"
-
     message_text = update.message.text
 
-
-
     admin_notification_text = (
-
         f"📩 رسالة جديدة وصلت للبوت!\n\n"
-
         f"👤 الاسم: {user_name}\n"
-
         f"🆔 الآيدي: `{user_id}`\n"
-
         f"🏷 اليوزرنيم: {username}\n"
-
         f"✍️ الرسالة:\n{message_text}"
-
     )
 
-
-
     # زر مدمج ذكي للانتقال المباشر لحساب الشخص المرسل
-
     keyboard = [[InlineKeyboardButton(text=f"👤 فتح حساب: {user_name}", url=f"tg://user?id={user_id}")]]
-
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-
-
     # إرسال الرسالة للأدمن فوراً وإرسال رسالة الشكر التلقائية للمستخدم
-
     await context.bot.send_message(chat_id=int(ADMIN_CHAT_ID), text=admin_notification_text, reply_markup=reply_markup)
-
     await update.message.reply_text(THANK_YOU_MESSAGE)
 
-
-
-def main():
-
-    # تشغيل خيط الويب (Thread) لمنع السيرفر من النوم
-
-    threading.Thread(target=run_flask, daemon=True).start()
-
-    
-
+# الدالة الأساسية لتشغيل محرك البوت
+async def main_bot():
     print("🤖 البوت يعمل الآن بنجاح واستقرار تام على سيرفرات Render...", flush=True)
-
     
-
     # بناء التطبيق وربط الدوال البرمجية بالأوامر والرسائل
-
     application = Application.builder().token(BOT_TOKEN).build()
-
     application.add_handler(CommandHandler("start", start_command))
-
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_incoming_messages))
-
     
-
-    # تشغيل الاستماع المباشر (Polling)
-
-    application.run_polling()
-
+    # تشغيل الاستماع المستمر المتوافق مع البيئة السحابية لـ Render
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    
+    # حلقة مستمرة لضمان عدم توقف البوت نهائياً عن العمل
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == '__main__':
+    # أ) تشغيل سيرفر الويب في سطر مستقل
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
+    # ب) تشغيل البوت مع حماية الـ Event Loop لبيئة ريندر المستقرة
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
