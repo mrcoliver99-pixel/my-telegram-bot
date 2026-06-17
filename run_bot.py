@@ -144,14 +144,33 @@ async def main_bot():
         await asyncio.sleep(3600)
 
 if __name__ == '__main__':
-    # أ) تشغيل سيرفر الويب في سطر مستقل
+    def start_all():
+    # 1. تشغيل سيرفر الويب الخفيف في الخلفية لمنع ريندر من الإغلاق
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
-    # ب) تشغيل البوت مع حماية الـ Event Loop لبيئة ريندر المستقرة
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main_bot())
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Bot stopped.")
+    # 2. إنشاء وتجهيز محرك البوت مع كل خاصياتك وأزرارك
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    BOT_TOKEN = "YOUR_BOT_TOKEN_HERE" # ⚠️ امسح هذا واكتب توكن بوتك الحقيقي هنا
+    
+    application = Application.builder().token(BOT_TOKEN).build()
+    
+    # ربط دالاتك الخاصة بالردود والأوامر داخل المحرك الجديد
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_incoming_messages))
+    
+    # 3. إطلاق البوت والبدء في استقبال الرسائل فوراً
+    logger.info("[SYSTEM] Starting bot polling with all handlers...")
+    
+    loop.run_until_complete(application.initialize())
+    loop.run_until_complete(application.start())
+    loop.run_until_complete(application.updater.start_polling())
+    
+    # إبقاء البوت مستيقظاً بشكل دائم
+    while True:
+        loop.run_until_complete(asyncio.sleep(3600))
+
+# السطر الأخير لتشغيل المنظومة كاملة فوراً
+start_all()
